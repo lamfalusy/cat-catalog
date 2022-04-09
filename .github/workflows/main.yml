@@ -10,7 +10,7 @@ on:
 env:
   DOCKER_REGISTRY: ghcr.io
   DOCKER_IMAGE_NAME: ${{ github.repository }}
-  HEROKU_APP_NAME: 'nye-progkor-warehouse'
+  HEROKU_APP_NAME: 'cat-catalog'
 
 jobs:
   build:
@@ -31,15 +31,15 @@ jobs:
     - name: Build and publish with Maven
       run: |
         # Versioning setup
-        version_prefix=`mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout --file warehouse/pom.xml | awk -F. '{print $1"."$2}'`
+        version_prefix=`mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout --file pom.xml | awk -F. '{print $1"."$2}'`
         version="$version_prefix.${{github.run_number}}"
         echo "Setting artifact version to $version"
         # Push version to env
         echo "ARTIFACT_VERSION=$version" >> $GITHUB_ENV
         # Overwrite local artifact version
-        mvn -B versions:set -DnewVersion="$version" --file warehouse/pom.xml
-        mvn -B deploy --file warehouse/pom.xml
-        cp "warehouse/web/target/web-${version}.jar" "warehouse/web/target/warehouse.jar"
+        mvn -B versions:set -DnewVersion="$version" --file pom.xml
+        mvn -B deploy --file pom.xml
+        cp "target/cat-catalog-${version}.jar" "target/cat-catalog.jar"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Log in to the Container registry
@@ -58,7 +58,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
       with:
-        context: ./warehouse
+        context: .
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -81,12 +81,12 @@ jobs:
         run: heroku container:login
       - name: Get image from packages, tag and push to Heroku
         run: |
-          docker pull ghcr.io/epam-nye-cooperation/epam-nye-progkor:${{ env.ARTIFACT_VERSION }}
-          docker tag ghcr.io/epam-nye-cooperation/epam-nye-progkor:${{ env.ARTIFACT_VERSION }} registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
-          docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/web
+          docker pull ghcr.io/lamfalusy/cat-catalog:${{ env.ARTIFACT_VERSION }}
+          docker tag ghcr.io/lamfalusy/cat-catalog:${{ env.ARTIFACT_VERSION }} registry.heroku.com/${{ env.HEROKU_APP_NAME }}/cat-catalog
+          docker push registry.heroku.com/${{ env.HEROKU_APP_NAME }}/cat-catalog
         env:
           ARTIFACT_VERSION: ${{ needs.build.outputs.artifactVersion }}
       - name: Release app on Heroku
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        run: heroku container:release -a ${{ env.HEROKU_APP_NAME }} web
+        run: heroku container:release -a ${{ env.HEROKU_APP_NAME }} cat-catalog
